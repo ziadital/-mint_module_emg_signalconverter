@@ -1,32 +1,56 @@
 namespace EMGConversion {
-    const windowSize = 10; // Größe des Zeitfensters
+    const windowDurationMs = 1000; // Zeitfenster in Millisekunden
+    const samplingRateHz = 100; // Annahme einer Abtastfrequenz von 100 Hz
+    const bufferSize = windowDurationMs * samplingRateHz / 1000; // Größe des Puffers basierend auf der Abtastfrequenz und der Zeitfensterdauer
     let signalBuffer: number[] = [];
+    let timer: number; // Timer-ID für die Signalerfassung
 
     /**
-     * Filters, rectifies, and calculates the RMS of the EMG signal over a window of the specified size
-     * @param signal The raw EMG signal
-     * @returns The RMS of the EMG signal over the specified window
+     * Startet die Signalerfassung
      */
-    //% block="Filter RAW Signal $signal"
-    //% signal.min=0 signal.max=1023
-    export function convertFilterRectifyAndCalculateRMS(signal: number): number {
-        // Filter and rectify the signal (in this example, the filter is just taking the absolute value)
-        const filteredSignal = Math.abs(signal);
+    //% block="Starte Erfassung"
+    export function startSampling(): void {
+        signalBuffer = []; // Leeren des Puffers
+        timer = control.timer1.runInParallel(() => {
+            stopSampling(); // Stoppt die Erfassung nach Ablauf der Zeit
+        }, windowDurationMs);
+    }
 
-        // Add the filtered signal to the buffer
-        signalBuffer.push(filteredSignal);
-
-        // If the buffer size exceeds the window size, remove oldest elements
-        if (signalBuffer.length > windowSize) {
-            signalBuffer.shift(); // Remove oldest element
-        }
-
-        // Calculate the sum of squares over the window
-        const sumOfSquares = signalBuffer.reduce((acc, val) => acc + (val * val), 0);
-
-        // Calculate RMS (Root Mean Square) value over the window
-        const rms = Math.sqrt(sumOfSquares / signalBuffer.length);
-
+    /**
+     * Stoppt die Signalerfassung und berechnet den RMS-Wert
+     */
+    //% block="Stoppe Erfassung und berechne RMS"
+    export function stopSampling(): void {
+        control.timer1.pause(timer); // Stoppt den Timer
+        const rms = calculateRMS(); // Berechnet den RMS-Wert
+        control.timer1.reset(timer); // Setzt den Timer zurück
         return rms;
+    }
+
+    /**
+     * Berechnet den Mittelwert aus den im Puffer gespeicherten Signalen
+     * @returns Der Mittelwert der gesammelten Signale
+     */
+    function calculateRMS(): number {
+        if (signalBuffer.length == 0) {
+            return 0; // Falls kein Signal erfasst wurde, gebe 0 zurück
+        }
+        // Berechnet die Summe der Signale im Puffer
+        const sum = signalBuffer.reduce((acc, val) => acc + val, 0);
+        // Berechnet den Mittelwert
+        const mean = sum / signalBuffer.length;
+        return mean;
+    }
+
+    /**
+     * Fügt ein neues Signal zum Puffer hinzu
+     * @param signal Das neue Signal
+     */
+    //% block="Füge Signal hinzu $signal"
+    //% signal.min=0 signal.max=1023
+    export function addSignal(signal: number): void {
+        if (signalBuffer.length < bufferSize) {
+            signalBuffer.push(signal); // Fügt das Signal hinzu, wenn der Puffer nicht voll ist
+        }
     }
 }
