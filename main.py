@@ -1,11 +1,11 @@
 namespace EMGConversion {
-    const bufferSize = 10; // Anzahl der Werte, über die der RMS-Wert berechnet wird
-    let buffer: number[] = [];
+    const windowSize = 10; // Größe des Zeitfensters
+    let signalBuffer: number[] = [];
 
     /**
-     * Filters, rectifies, and calculates the RMS of the EMG signal over a short time window
+     * Filters, rectifies, and calculates the RMS of the EMG signal over a window of the specified size
      * @param signal The raw EMG signal
-     * @returns The RMS of the EMG signal over the short time window
+     * @returns The RMS of the EMG signal over the specified window
      */
     //% block="Filter RAW Signal $signal"
     //% signal.min=0 signal.max=1023
@@ -14,18 +14,18 @@ namespace EMGConversion {
         const filteredSignal = Math.abs(signal);
 
         // Add the filtered signal to the buffer
-        buffer.push(filteredSignal);
+        signalBuffer.push(filteredSignal);
 
-        // If the buffer size exceeds the specified size, remove the oldest value
-        if (buffer.length > bufferSize) {
-            buffer.shift();
+        // If the buffer size exceeds the window size, remove oldest elements
+        if (signalBuffer.length > windowSize) {
+            signalBuffer.shift(); // Remove oldest element
         }
 
-        // Calculate the sum of squares of the buffer values
-        const sumOfSquares = buffer.reduce((acc, val) => acc + val * val, 0);
+        // Calculate the sum of squares over the window
+        const sumOfSquares = signalBuffer.reduce((acc, val) => acc + (val * val), 0);
 
-        // Calculate RMS (Root Mean Square) value
-        const rms = Math.sqrt(sumOfSquares / buffer.length);
+        // Calculate RMS (Root Mean Square) value over the window
+        const rms = Math.sqrt(sumOfSquares / signalBuffer.length);
 
         return rms;
     }
